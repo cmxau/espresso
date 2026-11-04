@@ -5,7 +5,7 @@ targets:
   Espresso:
     type: application
     platform: macOS
-    sources: [Sources/Espresso]
+    sources: [Sources/Espresso, Resources/AppIcon.icns]
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.cmxau.espresso
       INFOPLIST_FILE: Resources/Info.plist
