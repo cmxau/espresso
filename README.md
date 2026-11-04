@@ -50,3 +50,7 @@ No Xcode needed, the Command Line Tools are enough:
 [Report a bug](https://github.com/cmxau/espresso/issues/new?template=bug_report.md)
 
 Designed and developed by [cmxau](https://github.com/cmxau).
+
+## License
+
+[MIT](LICENSE) © 2026 cmxau
