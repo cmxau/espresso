@@ -6,16 +6,16 @@ final class Box<T>: ObservableObject { @Published var v: T; init(_ v: T) { self.
 /// Rounded highlight on hover, used by every row.
 struct Hoverable<C: View>: View {
     @StateObject private var hover = Box(false)
-    let content: (Bool) -> C
+    let content: () -> C
     var body: some View {
-        content(hover.v)
+        content()
             .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(hover.v ? 0.1 : 0)))
             .contentShape(Rectangle())
             .onHover { hover.v = $0 }
     }
 }
 
-// MARK: - Popover
+// MARK: - Panel
 
 struct MainView: View {
     @ObservedObject var prefs = Prefs.shared
@@ -133,7 +133,7 @@ struct SectionHeader: View {
     @ObservedObject var open: Box<Bool>
     init(_ title: String, open: Box<Bool>) { self.title = title; self.open = open }
     var body: some View {
-        Hoverable { _ in
+        Hoverable {
             Button { open.v.toggle() } label: {
                 HStack {
                     Text(title).font(.system(size: 13, weight: .semibold)).foregroundStyle(.secondary)
@@ -150,7 +150,7 @@ struct TextRow: View {
     let title: String, action: () -> Void
     init(_ title: String, action: @escaping () -> Void) { self.title = title; self.action = action }
     var body: some View {
-        Hoverable { _ in
+        Hoverable {
             Button(action: action) {
                 HStack { Text(title).font(.system(size: 13)); Spacer() }
                     .padding(.horizontal, 10).padding(.vertical, 5).contentShape(Rectangle())
@@ -169,7 +169,7 @@ struct SettingRow: View {
         self.trailingAction = trailingAction; self.action = action
     }
     var body: some View {
-        Hoverable { _ in
+        Hoverable {
             HStack(spacing: 10) {
                 Button(action: action) {
                     HStack(spacing: 10) {
@@ -227,23 +227,22 @@ struct CapsuleButton: ButtonStyle {
 }
 
 struct CupShape: Shape {
-    var steam: Bool
     func path(in rect: CGRect) -> Path {
         let s = rect.width / Cup.box.width
         let t = CGAffineTransform(translationX: rect.minX, y: rect.minY).scaledBy(x: s, y: s)
             .translatedBy(x: -Cup.box.minX, y: -Cup.box.minY)
         var p = Path(Cup.body)
         p.addPath(Path(Cup.handle))
-        if steam { p.addPath(Path(Cup.steam(nil))) }
+        p.addPath(Path(Cup.steam(nil)))
         return p.applying(t)
     }
 }
 
 struct CupView: View {
-    var width: CGFloat, steam = false, color: Color = .primary
+    var width: CGFloat, color: Color = .primary
     var body: some View {
         let s = width / Cup.box.width
-        CupShape(steam: steam)
+        CupShape()
             .stroke(color, style: StrokeStyle(lineWidth: Cup.lineWidth * s, lineCap: .round, lineJoin: .round))
             .frame(width: width, height: Cup.box.height * s)
     }
@@ -255,7 +254,7 @@ struct AppIconView: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: size * 0.22).fill(Color(red: 0.94, green: 0.97, blue: 1))
-            CupView(width: size * 0.62, steam: true, color: Color(red: 0.29, green: 0.52, blue: 0.9))
+            CupView(width: size * 0.62, color: Color(red: 0.29, green: 0.52, blue: 0.9))
         }
         .frame(width: size, height: size)
         .shadow(color: .black.opacity(0.2), radius: size * 0.04, y: size * 0.02)

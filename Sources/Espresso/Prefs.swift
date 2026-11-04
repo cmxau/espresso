@@ -16,9 +16,8 @@ enum Swatch: String, CaseIterable {
     }
 }
 
-enum Duration: Int, CaseIterable, Identifiable {
+enum Duration: Int {
     case infinite = 0, m15 = 900, m30 = 1800, m45 = 2700, h1 = 3600, h4 = 14400, h8 = 28800
-    var id: Int { rawValue }
     var seconds: TimeInterval? { self == .infinite ? nil : TimeInterval(rawValue) }
     var label: String {
         switch self {

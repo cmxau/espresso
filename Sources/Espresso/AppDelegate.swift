@@ -1,5 +1,4 @@
 import AppKit
-import SwiftUI
 import Combine
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -33,10 +32,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func click() {
         let right = NSApp.currentEvent?.type == .rightMouseUp
-        if prefs.leftClick && !right { awake.toggle() } else { togglePopover() }
+        if prefs.leftClick && !right { awake.toggle() } else { togglePanel() }
     }
 
-    private func togglePopover() {
+    private func togglePanel() {
         guard let b = item.button else { return }
         panel.toggle(from: b) { Windows.about() }
     }

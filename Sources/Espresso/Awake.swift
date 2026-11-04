@@ -83,7 +83,7 @@ final class Awake: ObservableObject {
         return err == nil
     }
 
-    func notify(_ text: String) {
+    private func notify(_ text: String) {
         guard prefs.notifications else { return }
         let c = UNMutableNotificationContent()
         c.title = "espresso"
