@@ -22,8 +22,8 @@ Light by design: about 12 MB of memory, ~0 % CPU, no disk writes and no network 
 
 ## Install
 
-Download the latest `.zip` from [Releases](https://github.com/cmxau/espresso/releases), unzip, and move
-`Espresso.app` to `/Applications`. Or build from source. Details and first-run notes: [docs/installation.md](docs/installation.md).
+Download the latest `.dmg` from [Releases](https://github.com/cmxau/espresso/releases), open it, and drag
+`Espresso.app` to `Applications`. Or build from source. Details and first-run notes: [docs/installation.md](docs/installation.md).
 
 Requires macOS 14 or later.
 

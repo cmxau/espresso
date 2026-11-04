@@ -4,8 +4,8 @@ Espresso requires **macOS 14 (Sonoma) or later**, Apple silicon or Intel.
 
 ## From a release
 
-1. Download the latest `Espresso-x.y.z.zip` from the [Releases](https://github.com/cmxau/espresso/releases) page.
-2. Unzip it and drag `Espresso.app` to `/Applications`.
+1. Download the latest `Espresso-x.y.z.dmg` from the [Releases](https://github.com/cmxau/espresso/releases) page.
+2. Open the disk image and drag `Espresso.app` onto the `Applications` shortcut, then eject the image.
 3. Open it. A cup appears in the menu bar and a one-time welcome window is shown.
 
 ### "Espresso can't be opened" on first run

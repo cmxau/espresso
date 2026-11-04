@@ -1,6 +1,6 @@
 import AppKit
 
-/// Checks GitHub Releases (cmxau/espresso) for a newer .zip containing Espresso.app.
+/// Checks GitHub Releases (cmxau/espresso) for a newer .dmg containing Espresso.app.
 @MainActor
 final class Updater: ObservableObject {
     static let shared = Updater()
@@ -26,7 +26,7 @@ final class Updater: ObservableObject {
     // MARK: Trust limits. Ad-hoc signing means nothing here is cryptographic authentication; these narrow the attack surface.
 
     nonisolated private static let bundleID = "com.cmxau.espresso"
-    private static let maxJSON = 1 << 20, maxZip = 50 << 20
+    private static let maxJSON = 1 << 20, maxAsset = 50 << 20
 
     /// https only, GitHub hosts only (release downloads redirect to *.githubusercontent.com).
     nonisolated static func allowed(_ url: URL?) -> Bool {
@@ -54,9 +54,9 @@ final class Updater: ObservableObject {
             let v = rel.tag_name.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
             guard v.range(of: "^[0-9]+(\\.[0-9]+){0,3}$", options: .regularExpression) != nil else { throw fail("bad tag") }
             guard v.compare(current, options: .numeric) == .orderedDescending,
-                  let a = rel.assets.first(where: { $0.name.hasSuffix(".zip") }),
+                  let a = rel.assets.first(where: { $0.name.hasSuffix(".dmg") }),
                   let dl = URL(string: a.browser_download_url) else { status = "Espresso is up to date"; available = nil; return }
-            guard Updater.allowed(dl), dl.path.hasPrefix("/cmxau/espresso/releases/download/"), a.size <= Updater.maxZip
+            guard Updater.allowed(dl), dl.path.hasPrefix("/cmxau/espresso/releases/download/"), a.size <= Updater.maxAsset
             else { throw fail("untrusted asset") }
             available = dl
             status = "Version \(v) is available"
@@ -70,7 +70,7 @@ final class Updater: ObservableObject {
         do {
             let (tmp, resp) = try await URLSession.shared.download(from: url, delegate: RedirectGuard())
             guard (resp as? HTTPURLResponse)?.statusCode == 200, Updater.allowed(resp.url),
-                  ((try? FileManager.default.attributesOfItem(atPath: tmp.path)[.size] as? Int) ?? .max) <= Updater.maxZip
+                  ((try? FileManager.default.attributesOfItem(atPath: tmp.path)[.size] as? Int) ?? .max) <= Updater.maxAsset
             else { throw fail("bad download") }
             let current = self.current
             let new = try await Task.detached { try Updater.stageAndVerify(tmp, currentVersion: current) }.value
@@ -90,35 +90,38 @@ final class Updater: ObservableObject {
         } catch { status = "Update failed. Please try again." }
     }
 
-    /// Unzips into a fresh 0700 dir and returns the verified Espresso.app inside it, or throws.
-    nonisolated private static func stageAndVerify(_ zip: URL, currentVersion: String) throws -> URL {
+    /// Copies Espresso.app out of the (read-only, mounted) disk image into a fresh 0700 dir and returns the verified copy, or throws.
+    nonisolated private static func stageAndVerify(_ dmg: URL, currentVersion: String) throws -> URL {
         let fm = FileManager.default
         func bad(_ m: String) -> Error { NSError(domain: "Updater", code: 2, userInfo: [NSLocalizedDescriptionKey: m]) }
-        func run(_ exe: String, _ args: [String]) throws -> (Int32, String) {
-            let p = Process(), out = Pipe()
+        func run(_ exe: String, _ args: [String]) throws -> Int32 {
+            let p = Process()
             p.executableURL = URL(fileURLWithPath: exe); p.arguments = args
-            p.standardOutput = out; p.standardError = FileHandle.nullDevice
-            try p.run()
-            let text = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-            p.waitUntilExit()
-            return (p.terminationStatus, text)
+            p.standardOutput = FileHandle.nullDevice; p.standardError = FileHandle.nullDevice
+            try p.run(); p.waitUntilExit()
+            return p.terminationStatus
         }
         let dir = fm.temporaryDirectory.appendingPathComponent("espresso-" + UUID().uuidString)
         try fm.createDirectory(at: dir, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
-        let src = dir.appendingPathComponent("u.zip"), out = dir.appendingPathComponent("x")
-        try fm.moveItem(at: zip, to: src)
-        // Reject absolute / ".." entry names and zip bombs before extracting.
-        let (ls, list) = try run("/usr/bin/zipinfo", ["-1", src.path])
-        let names = list.split(separator: "\n").map(String.init)
-        guard ls == 0, !names.isEmpty, names.count < 5000,
-              names.allSatisfy({ !$0.hasPrefix("/") && !$0.split(separator: "/").contains("..") && ($0 == "Espresso.app" || $0.hasPrefix("Espresso.app/")) })
-        else { throw bad("unsafe archive") }
-        guard try run("/usr/bin/ditto", ["-x", "-k", src.path, out.path]).0 == 0 else { throw bad("unzip failed") }
-        // No symlinks anywhere; everything must resolve inside the extraction dir.
+        let src = dir.appendingPathComponent("u.dmg"), mnt = dir.appendingPathComponent("mnt"), out = dir.appendingPathComponent("x")
+        try fm.moveItem(at: dmg, to: src)
+        try fm.createDirectory(at: mnt, withIntermediateDirectories: false)
+        try fm.createDirectory(at: out, withIntermediateDirectories: false)
+        guard try run("/usr/bin/hdiutil", ["attach", "-nobrowse", "-readonly", "-noverify", "-noautoopen", "-mountpoint", mnt.path, src.path]) == 0
+        else { throw bad("mount failed") }
+        defer { _ = try? run("/usr/bin/hdiutil", ["detach", "-force", mnt.path]) }
+        // Only a real Espresso.app directory is taken from the image (never a symlink); the rest of the volume is ignored.
+        let from = mnt.appendingPathComponent("Espresso.app")
+        var isDir: ObjCBool = false
+        guard fm.fileExists(atPath: from.path, isDirectory: &isDir), isDir.boolValue,
+              (try from.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) != true,
+              try run("/usr/bin/ditto", [from.path, out.appendingPathComponent("Espresso.app").path]) == 0
+        else { throw bad("no app in image") }
+        // No symlinks anywhere in the copy; everything must resolve inside the staging dir.
         let root = out.resolvingSymlinksInPath().path + "/"
         for case let u as URL in fm.enumerator(at: out, includingPropertiesForKeys: [.isSymbolicLinkKey])! {
             guard (try u.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) != true,
-                  (u.resolvingSymlinksInPath().path + "/").hasPrefix(root) else { throw bad("symlink in archive") }
+                  (u.resolvingSymlinksInPath().path + "/").hasPrefix(root) else { throw bad("symlink in app") }
         }
         let app = out.appendingPathComponent("Espresso.app")
         guard let info = Bundle(url: app)?.infoDictionary,
@@ -128,7 +131,7 @@ final class Updater: ObservableObject {
               let exe = info["CFBundleExecutable"] as? String, exe == "Espresso",
               fm.isExecutableFile(atPath: app.appendingPathComponent("Contents/MacOS/" + exe).path)
         else { throw bad("wrong bundle") }
-        guard try run("/usr/bin/codesign", ["--verify", "--deep", "--strict", app.path]).0 == 0 else { throw bad("bad signature") }
+        guard try run("/usr/bin/codesign", ["--verify", "--deep", "--strict", app.path]) == 0 else { throw bad("bad signature") }
         return app
     }
 }

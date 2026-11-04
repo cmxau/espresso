@@ -29,7 +29,7 @@ Prefs (UserDefaults) is shared by all of the above.
 | `Cup.swift` | The cup icon as stroked `CGPath` centerlines. Single source for every rendering of the icon. |
 | `Icon.swift` | Renders `Cup` into cached 2x bitmap `NSImage`s for the menu bar (template unless a color is set). |
 | `Windows.swift` | Shows About / Welcome in plain `NSWindow`s, kept alive only while open. |
-| `Updater.swift` | Checks the latest GitHub release, downloads the `.zip` (host allowlist), verifies the bundle (id, version, `codesign`, no symlinks), swaps it in and relaunches. |
+| `Updater.swift` | Checks the latest GitHub release, downloads the `.dmg` (host allowlist), mounts it read-only and copies `Espresso.app` out, verifies the bundle (id, version, `codesign`, no symlinks), swaps it in and relaunches. |
 
 ## Key design decisions
 
