@@ -1,0 +1,13 @@
+# `xcodegen` -> Espresso.xcodeproj
+name: Espresso
+options: { deploymentTarget: { macOS: "14.0" } }
+targets:
+  Espresso:
+    type: application
+    platform: macOS
+    sources: [Sources/Espresso]
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.cmxau.espresso
+      INFOPLIST_FILE: Resources/Info.plist
+      GENERATE_INFOPLIST_FILE: NO
+      ENABLE_HARDENED_RUNTIME: YES
