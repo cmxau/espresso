@@ -57,7 +57,7 @@ If the app is ever force-killed while lid mode is on, run `sudo pmset -a disable
 ## Updating
 
 Open **About** → **Check Now**, or enable *Check for updates automatically* (once a day) and
-*Install updates automatically*. Updates come from GitHub Releases; see [releasing.md](releasing.md).
+*Install updates automatically*. Updates come from GitHub Releases and are checked for bundle identifier, newer version and a valid code signature before install; because releases are ad hoc signed this does not prove who built them. See [releasing.md](releasing.md).
 
 ## Uninstalling
 

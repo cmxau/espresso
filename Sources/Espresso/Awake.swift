@@ -75,11 +75,23 @@ final class Awake: ObservableObject {
         return p.terminationStatus == 0
     }
 
+    /// The sudoers line for `user`, or nil unless it is a plain POSIX login name (keeps newlines, quotes, spaces,
+    /// commas and `#`/`%`/`!` prefixes out of the rule and out of the shell script below).
+    static func sudoersRule(user: String) -> String? {
+        guard user.range(of: "^[A-Za-z_][A-Za-z0-9_.-]{0,31}\\z", options: .regularExpression) != nil else { return nil }
+        return "\(user) ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1"
+    }
+
+    /// Runs as root via one admin prompt. Everything (private mktemp dir, file contents, visudo check, install) happens
+    /// inside the root script, so no user-writable file is ever trusted by root and there is nothing to race.
     private func installSudoers() -> Bool {
-        let rule = "\(NSUserName()) ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1"
-        let sh = "echo '\(rule)' > /private/tmp/espresso.sudoers && /usr/sbin/visudo -cf /private/tmp/espresso.sudoers && /usr/bin/install -m 440 -o root -g wheel /private/tmp/espresso.sudoers /etc/sudoers.d/espresso; rm -f /private/tmp/espresso.sudoers"
+        guard let rule = Awake.sudoersRule(user: NSUserName()) else { return false }   // validated: safe inside '…'
+        let sh = "set -e; T=$(/usr/bin/mktemp -d); trap '/bin/rm -rf \"$T\"' EXIT; "
+            + "/usr/bin/printf '%s\\n' '\(rule)' > \"$T/r\"; /usr/sbin/visudo -cf \"$T/r\"; "
+            + "/usr/bin/install -m 440 -o root -g wheel \"$T/r\" /etc/sudoers.d/espresso"
+        let escaped = sh.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
         var err: NSDictionary?
-        NSAppleScript(source: "do shell script \"\(sh)\" with administrator privileges")?.executeAndReturnError(&err)
+        NSAppleScript(source: "do shell script \"\(escaped)\" with administrator privileges")?.executeAndReturnError(&err)
         return err == nil
     }
 
